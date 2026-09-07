@@ -13,8 +13,7 @@ jobs:
       - name: Checkout Source Code
         uses: actions/checkout@v4
 
-      # Unpack BEFORE Java and Gradle run so Gradle files exist
-      - name: Unpack JukeTown Zip (if present)
+      - name: Unpack JukeTown Zip
         run: |
           if [ -f "JukeTown.zip" ]; then
             unzip -o JukeTown.zip
@@ -31,6 +30,11 @@ jobs:
 
       - name: Setup Android SDK
         uses: android-actions/setup-android@v3
+
+      - name: Add Missing Material Icons Extended Dependency
+        run: |
+          # Ensure Extended Material Icons are available for all screens
+          sed -i '/dependencies {/a \    implementation("androidx.compose.material:material-icons-extended:1.6.8")' app/build.gradle.kts || true
 
       - name: Fix Maven Repositories
         run: |
@@ -54,7 +58,7 @@ jobs:
           include(":app")
           EOF
 
-      - name: Overwrite Clean Importer & App
+      - name: Patch Importer & App
         run: |
           mkdir -p app/src/main/java/com/juketown/app/util
           cat << 'EOF' > app/src/main/java/com/juketown/app/util/Importer.kt
@@ -81,6 +85,16 @@ jobs:
             gradle wrapper --gradle-version 8.7
           fi
           chmod +x gradlew
+
+      - name: Run Clean Build
+        run: ./gradlew assembleDebug --no-daemon --stacktrace
+
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: JukeTown-Working-APK
+          path: app/build/outputs/apk/debug/*.apk
+          retention-days: 7
 
       - name: Run Clean Build
         run: ./gradlew assembleDebug --no-daemon --stacktrace
